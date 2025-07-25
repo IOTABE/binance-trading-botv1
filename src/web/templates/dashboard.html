@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Trading Bot{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <h1>Dashboard</h1>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Status do Bot</h5>
+                <p class="card-text" id="bot-status">Carregando...</p>
+                <button class="btn btn-success" id="start-bot">Iniciar</button>
+                <button class="btn btn-danger" id="stop-bot">Parar</button>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Saldo</h5>
+                <p class="card-text" id="balance">$0.00</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Posições Ativas</h5>
+                <p class="card-text" id="active-positions">0</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">P&L Diário</h5>
+                <p class="card-text" id="daily-pnl">$0.00</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Log de Atividades</h5>
+                <div id="activity-log" style="height: 300px; overflow-y: scroll;">
+                    <!-- Logs serão inseridos aqui -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Conectar ao SocketIO
+    const socket = io();
+    
+    // Atualizar status periodicamente
+    function updateStatus() {
+        fetch('/api/status')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('bot-status').textContent = data.running ? 'Ativo' : 'Inativo';
+                document.getElementById('balance').textContent = `$${data.balance.toFixed(2)}`;
+                document.getElementById('active-positions').textContent = data.positions;
+            });
+    }
+    
+    // Botões de controle
+    document.getElementById('start-bot').addEventListener('click', function() {
+        fetch('/api/start-bot', { method: 'POST' })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert('Erro: ' + data.error);
+                } else {
+                    alert('Bot iniciado com sucesso!');
+                    updateStatus();
+                }
+            });
+    });
+    
+    document.getElementById('stop-bot').addEventListener('click', function() {
+        fetch('/api/stop-bot', { method: 'POST' })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert('Erro: ' + data.error);
+                } else {
+                    alert('Bot parado com sucesso!');
+                    updateStatus();
+                }
+            });
+    });
+    
+    // Atualizar status a cada 5 segundos
+    setInterval(updateStatus, 5000);
+    updateStatus(); // Primeira atualização
+</script>
+{% endblock %}

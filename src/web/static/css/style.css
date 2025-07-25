@@ -1,0 +1,34 @@
+.card {
+    margin-bottom: 20px;
+}
+
+.status-active {
+    color: #28a745;
+}
+
+.status-inactive {
+    color: #dc3545;
+}
+
+#activity-log {
+    background-color: #f8f9fa;
+    padding: 10px;
+    border-radius: 5px;
+    font-family: monospace;
+    font-size: 0.9em;
+}
+
+.log-entry {
+    margin-bottom: 5px;
+    padding: 5px;
+    border-left: 3px solid #007bff;
+    background-color: white;
+}
+
+.log-error {
+    border-left-color: #dc3545;
+}
+
+.log-success {
+    border-left-color: #28a745;
+}
