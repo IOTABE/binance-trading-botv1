@@ -6,8 +6,8 @@ from .indicators import (
     calculate_stochastic, calculate_atr, calculate_volume_profile,
     calculate_support_resistance
 )
-from ..models.signal import MarketSignal
-from ..models.enums import SignalStrength
+from src.models.signal import MarketSignal
+from src.models.enums import SignalStrength
 import logging
 
 logger = logging.getLogger(__name__)

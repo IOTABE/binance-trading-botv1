@@ -64,7 +64,7 @@
 <script>
     // Conectar ao SocketIO
     const socket = io();
-    
+
     // Atualizar status periodicamente
     function updateStatus() {
         fetch('/api/status')
@@ -73,9 +73,19 @@
                 document.getElementById('bot-status').textContent = data.running ? 'Ativo' : 'Inativo';
                 document.getElementById('balance').textContent = `$${data.balance.toFixed(2)}`;
                 document.getElementById('active-positions').textContent = data.positions;
+                // Atualizar logs
+                if (data.errors) {
+                    const logDiv = document.getElementById('activity-log');
+                    logDiv.innerHTML = '';
+                    data.errors.forEach(function(log) {
+                        const p = document.createElement('p');
+                        p.textContent = log;
+                        logDiv.appendChild(p);
+                    });
+                }
             });
     }
-    
+
     // Botões de controle
     document.getElementById('start-bot').addEventListener('click', function() {
         fetch('/api/start-bot', { method: 'POST' })
@@ -89,7 +99,7 @@
                 }
             });
     });
-    
+
     document.getElementById('stop-bot').addEventListener('click', function() {
         fetch('/api/stop-bot', { method: 'POST' })
             .then(response => response.json())
@@ -102,7 +112,7 @@
                 }
             });
     });
-    
+
     // Atualizar status a cada 5 segundos
     setInterval(updateStatus, 5000);
     updateStatus(); // Primeira atualização

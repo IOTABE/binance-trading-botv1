@@ -1,4 +1,5 @@
 import sys
+import decimal
 import os
 import time
 import logging
@@ -24,6 +25,30 @@ from data.market_data import MarketDataProvider
 logger = logging.getLogger(__name__)
 
 class BinanceTradingBot:
+    def _get_min_notional(self, symbol: str) -> float:
+        """Obtém o valor mínimo de notional exigido para o símbolo."""
+        try:
+            info = self.client.get_symbol_info(symbol)
+            for f in info['filters']:
+                if f['filterType'] == 'MIN_NOTIONAL':
+                    return float(f['minNotional'])
+        except Exception as e:
+            logger.error(f"Erro ao buscar MIN_NOTIONAL do símbolo {symbol}: {e}")
+        return 0.0
+    def _get_lot_size_info(self, symbol: str):
+        """Obtém stepSize, minQty e maxQty do símbolo."""
+        try:
+            info = self.client.get_symbol_info(symbol)
+            for f in info['filters']:
+                if f['filterType'] == 'LOT_SIZE':
+                    step_size = float(f['stepSize'])
+                    min_qty = float(f['minQty'])
+                    max_qty = float(f['maxQty'])
+                    precision = abs(decimal.Decimal(str(step_size)).as_tuple().exponent)
+                    return step_size, min_qty, max_qty, precision
+        except Exception as e:
+            logger.error(f"Erro ao buscar LOT_SIZE do símbolo {symbol}: {e}")
+        return 1e-6, 1e-6, 1e6, 6  # valores padrão
     """Bot de trading automatizado para Binance"""
     
     def __init__(self, config):
@@ -280,17 +305,37 @@ class BinanceTradingBot:
             
             # Calcular tamanho da posição
             position_size = self.risk_manager._calculate_position_size(signal)
-            
-            if position_size <= 0:
-                logger.warning(f"❌ Tamanho de posição inválido para {signal.symbol}")
+            step_size, min_qty, max_qty, precision = self._get_lot_size_info(signal.symbol)
+            # Ajustar para múltiplo de step_size e dentro dos limites
+            position_size = max(min_qty, min(position_size, max_qty))
+            # Arredondar para múltiplo de step_size
+            position_size = float(decimal.Decimal(str(position_size)).quantize(decimal.Decimal(str(step_size))))
+            # Formatar quantity como string decimal simples
+            quantity_str = format(position_size, f'.{precision}f').rstrip('0').rstrip('.')
+
+            # Verificar notional mínimo
+            min_notional = self._get_min_notional(signal.symbol)
+            # Usar preço de mercado para cálculo do notional
+            try:
+                ticker = self.client.get_symbol_ticker(symbol=signal.symbol)
+                market_price = float(ticker['price'])
+            except Exception:
+                market_price = signal.entry_price
+            notional = position_size * market_price
+            if notional < min_notional:
+                logger.warning(f"❌ Notional ({notional}) menor que o mínimo ({min_notional}) para {signal.symbol}")
                 return False
-            
+
+            if position_size < min_qty or position_size > max_qty or position_size <= 0:
+                logger.warning(f"❌ Tamanho de posição inválido para {signal.symbol}: {position_size}")
+                return False
+
             # No testnet, simular execução da ordem
             if self.config.testnet:
                 logger.info(f"🧪 TESTNET: Simulando ordem de compra para {signal.symbol}")
                 logger.info(f"   Quantidade: {position_size}")
                 logger.info(f"   Preço estimado: {signal.entry_price}")
-                
+
                 # Simular ordem executada
                 success = self.risk_manager.add_position(
                     symbol=signal.symbol,
@@ -301,24 +346,24 @@ class BinanceTradingBot:
                     take_profit=signal.take_profit,
                     risk_amount=signal.risk_amount
                 )
-                
+
                 if success:
                     signal.execute()
                     logger.info(f"✅ Posição simulada criada para {signal.symbol}")
-                
+
                 return success
-            
+
             else:
                 # Executar ordem real
                 order = self.client.order_market_buy(
                     symbol=signal.symbol,
-                    quantity=position_size
+                    quantity=quantity_str
                 )
-                
+
                 if order['status'] == 'FILLED':
                     # Registrar posição
                     executed_price = float(order['fills'][0]['price']) if order['fills'] else signal.entry_price
-                    
+
                     success = self.risk_manager.add_position(
                         symbol=signal.symbol,
                         side='BUY',
@@ -328,13 +373,13 @@ class BinanceTradingBot:
                         take_profit=signal.take_profit,
                         risk_amount=signal.risk_amount
                     )
-                    
+
                     if success:
                         # Configurar stop loss e take profit
                         self._set_stop_loss_take_profit(signal.symbol, signal.stop_loss, signal.take_profit)
                         signal.execute()
                         return True
-                
+
                 return False
             
         except BinanceAPIException as e:

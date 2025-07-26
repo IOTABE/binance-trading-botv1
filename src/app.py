@@ -4,20 +4,24 @@ import json
 import threading
 from datetime import datetime
 from config.settings import Settings
-from trading.bot import TradingBot
+from src.bot.trading_bot import TradingBot
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 def create_app():
-    app = Flask(__name__, 
-                template_folder='web/templates',
-                static_folder='web/static')
-    app.config['SECRET_KEY'] = 'your-secret-key-here'
-    
+    app = Flask(__name__,
+                template_folder=os.path.join(os.path.dirname(__file__), 'web', 'templates'),
+                static_folder=os.path.join(os.path.dirname(__file__), 'web', 'static'))
+    app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'your-secret-key-here')
+
     # SocketIO para atualizações em tempo real
-    socketio = SocketIO(app, cors_allowed_origins="*")
+    socketio = SocketIO(app, cors_allowed_origins="*", ping_timeout=60, ping_interval=25)
     
     # Instância global do bot
-    trading_bot = None
-    bot_thread = None
+    app.trading_bot = None
+    app.bot_thread = None
     
     @app.route('/')
     def dashboard():
@@ -33,7 +37,12 @@ def create_app():
     @app.route('/positions')
     def positions():
         """Página de posições"""
-        return render_template('positions.html')
+        # Exemplo: obtenha as posições do seu bot
+        positions = []
+        if hasattr(app, 'trading_bot') and app.trading_bot:
+            # Supondo que app.trading_bot.risk_manager.positions seja um dict
+            positions = list(app.trading_bot.risk_manager.positions.values())
+        return render_template('positions.html', positions=positions)
     
     @app.route('/api/start-bot', methods=['POST'])
     def start_bot():
@@ -41,16 +50,16 @@ def create_app():
         global trading_bot, bot_thread
         
         try:
-            if trading_bot and trading_bot.is_running:
+            if app.trading_bot and app.trading_bot.is_running:
                 return jsonify({'error': 'Bot já está rodando'}), 400
             
             settings = Settings()
-            trading_bot = TradingBot(settings)
+            app.trading_bot = TradingBot(settings)
             
             # Executar bot em thread separada
-            bot_thread = threading.Thread(target=trading_bot.run)
-            bot_thread.daemon = True
-            bot_thread.start()
+            app.bot_thread = threading.Thread(target=app.trading_bot.run)
+            app.bot_thread.daemon = True
+            app.bot_thread.start()
             
             return jsonify({'message': 'Bot iniciado com sucesso'})
         
@@ -63,8 +72,8 @@ def create_app():
         global trading_bot
         
         try:
-            if trading_bot:
-                trading_bot.stop()
+            if app.trading_bot:
+                app.trading_bot.stop()
                 return jsonify({'message': 'Bot parado com sucesso'})
             else:
                 return jsonify({'error': 'Bot não está rodando'}), 400
@@ -77,11 +86,11 @@ def create_app():
         """Status do bot"""
         global trading_bot
         
-        if trading_bot:
+        if app.trading_bot:
             return jsonify({
-                'running': trading_bot.is_running if hasattr(trading_bot, 'is_running') else False,
-                'positions': len(trading_bot.positions) if hasattr(trading_bot, 'positions') else 0,
-                'balance': trading_bot.get_balance() if hasattr(trading_bot, 'get_balance') else 0,
+            'running': app.trading_bot.is_running if hasattr(app.trading_bot, 'is_running') else False,
+            'positions': len(app.trading_bot.positions) if hasattr(app.trading_bot, 'positions') else 0,
+            'balance': app.trading_bot.get_balance() if hasattr(app.trading_bot, 'get_balance') else 0,
                 'last_update': datetime.now().isoformat()
             })
         else:
