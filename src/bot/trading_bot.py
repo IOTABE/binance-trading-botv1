@@ -468,14 +468,18 @@ class BinanceTradingBot:
                 del self.risk_manager.positions[symbol]
                 
                 # Emitir atualização via WebSocket
-                if hasattr(self, 'app') and hasattr(self.app, 'socketio'):
-                    positions = list(self.risk_manager.positions.values())
-                    daily_pnl = sum(pos.unrealized_pnl for pos in positions)
-                    self.app.socketio.emit('update_positions', {
-                        'positions': [pos.to_dict() for pos in positions],
-                        'active_positions': len(positions),
-                        'daily_pnl': daily_pnl
-                    })
+                if hasattr(self, 'app') and hasattr(self.app, 'emit_to_all_clients'):
+                    try:
+                        positions = list(self.risk_manager.positions.values())
+                        daily_pnl = sum(pos.unrealized_pnl for pos in positions)
+                        self.app.emit_to_all_clients('update_positions', {
+                            'positions': [pos.to_dict() for pos in positions],
+                            'active_positions': len(positions),
+                            'daily_pnl': daily_pnl,
+                            'timestamp': datetime.now().isoformat()
+                        })
+                    except Exception as e:
+                        logger.error(f"Erro ao emitir atualização WebSocket: {e}")
         except Exception as e:
             self.logger.error(f"Erro ao encerrar posição: {e}")
             raise e

@@ -62,11 +62,51 @@
 
 {% block scripts %}
 <script>
-    // Conectar ao SocketIO
-    const socket = io();
+    // Configurar Socket.IO com reconexão
+    const socket = io({
+        reconnection: true,
+        reconnectionAttempts: 5,
+        reconnectionDelay: 1000,
+        reconnectionDelayMax: 5000,
+        timeout: 20000
+    });
+
+    // Eventos de conexão
+    socket.on('connect', () => {
+        console.log('Conectado ao servidor');
+        addLogMessage('Conexão WebSocket estabelecida');
+    });
+
+    socket.on('disconnect', () => {
+        console.log('Desconectado do servidor');
+        addLogMessage('Conexão WebSocket perdida. Tentando reconectar...');
+    });
+
+    socket.on('error', (error) => {
+        console.error('Erro Socket.IO:', error);
+        addLogMessage('Erro na conexão WebSocket: ' + error.message);
+    });
+
+    socket.on('connect_error', (error) => {
+        console.error('Erro de conexão:', error);
+        addLogMessage('Erro ao conectar com o servidor');
+    });
+
+    // Função auxiliar para adicionar mensagens ao log
+    function addLogMessage(message) {
+        const logDiv = document.getElementById('activity-log');
+        const p = document.createElement('p');
+        p.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+        logDiv.insertBefore(p, logDiv.firstChild);
+    }
 
     // Ouvir atualizações de posições via WebSocket
+    let lastUpdateTime = 0;
     socket.on('update_positions', function(data) {
+        // Evitar atualizações muito frequentes
+        const now = Date.now();
+        if (now - lastUpdateTime < 500) return; // Limitar a 2 atualizações por segundo
+        lastUpdateTime = now;
         document.getElementById('active-positions').textContent = data.active_positions;
         document.getElementById('daily-pnl').textContent = `$${data.daily_pnl.toFixed(2)}`;
     });

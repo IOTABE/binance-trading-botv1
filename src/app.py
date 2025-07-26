@@ -17,11 +17,24 @@ def create_app():
     app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'your-secret-key-here')
 
     # SocketIO para atualizações em tempo real
-    socketio = SocketIO(app, cors_allowed_origins="*", ping_timeout=60, ping_interval=25)
+    socketio = SocketIO(
+        app,
+        cors_allowed_origins="*",
+        ping_timeout=60,
+        ping_interval=25,
+        async_mode='threading',
+        logger=True,
+        engineio_logger=True,
+        reconnection=True,
+        reconnection_attempts=5,
+        reconnection_delay=1000,
+        reconnection_delay_max=5000
+    )
     
     # Instância global do bot
     app.trading_bot = None
     app.bot_thread = None
+    app.connected_clients = set()
     
     @app.route('/')
     def dashboard():
@@ -154,13 +167,50 @@ def create_app():
     # SocketIO Events
     @socketio.on('connect')
     def handle_connect():
-        print('Cliente conectado')
-        emit('status', {'message': 'Conectado ao servidor'})
+        sid = request.sid
+        app.connected_clients.add(sid)
+        print(f'Cliente conectado (sid: {sid})')
+        try:
+            emit('status', {
+                'message': 'Conectado ao servidor',
+                'sid': sid,
+                'clientCount': len(app.connected_clients)
+            })
+        except Exception as e:
+            print(f'Erro ao enviar status inicial: {e}')
     
     @socketio.on('disconnect')
     def handle_disconnect():
-        print('Cliente desconectado')
+        sid = request.sid
+        if sid in app.connected_clients:
+            app.connected_clients.remove(sid)
+        print(f'Cliente desconectado (sid: {sid})')
     
+    @socketio.on_error()
+    def error_handler(e):
+        print(f'Erro no Socket.IO: {e}')
+        if request and hasattr(request, 'sid'):
+            emit('error', {'message': 'Erro na conexão. Tentando reconectar...'}, room=request.sid)
+    
+    @socketio.on('error')
+    def handle_error(error):
+        print(f'Erro reportado pelo cliente: {error}')
+    
+    def emit_to_all_clients(event, data):
+        """Emite evento para todos os clientes conectados com tratamento de erro"""
+        disconnected = set()
+        for sid in app.connected_clients:
+            try:
+                emit(event, data, room=sid)
+            except Exception as e:
+                print(f'Erro ao emitir para cliente {sid}: {e}')
+                disconnected.add(sid)
+        
+        # Remover clientes desconectados
+        app.connected_clients.difference_update(disconnected)
+    
+    # Adicionar função helper ao app
+    app.emit_to_all_clients = emit_to_all_clients
     app.socketio = socketio
     return app
 
