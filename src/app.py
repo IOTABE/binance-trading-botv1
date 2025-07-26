@@ -87,10 +87,22 @@ def create_app():
         global trading_bot
         
         if app.trading_bot:
+            # Calcular P&L diário
+            daily_pnl = 0
+            active_positions = 0
+            
+            if hasattr(app.trading_bot, 'risk_manager'):
+                positions = app.trading_bot.risk_manager.positions
+                active_positions = len(positions)
+                
+                # Somar P&L de todas as posições
+                daily_pnl = sum(pos.unrealized_pnl for pos in positions.values()) if positions else 0
+            
             return jsonify({
-            'running': app.trading_bot.is_running if hasattr(app.trading_bot, 'is_running') else False,
-            'positions': len(app.trading_bot.positions) if hasattr(app.trading_bot, 'positions') else 0,
-            'balance': app.trading_bot.get_balance() if hasattr(app.trading_bot, 'get_balance') else 0,
+                'running': app.trading_bot.is_running if hasattr(app.trading_bot, 'is_running') else False,
+                'positions': active_positions,
+                'balance': app.trading_bot.get_balance() if hasattr(app.trading_bot, 'get_balance') else 0,
+                'daily_pnl': daily_pnl,
                 'last_update': datetime.now().isoformat()
             })
         else:

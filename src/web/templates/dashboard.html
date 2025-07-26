@@ -65,6 +65,12 @@
     // Conectar ao SocketIO
     const socket = io();
 
+    // Ouvir atualizações de posições via WebSocket
+    socket.on('update_positions', function(data) {
+        document.getElementById('active-positions').textContent = data.active_positions;
+        document.getElementById('daily-pnl').textContent = `$${data.daily_pnl.toFixed(2)}`;
+    });
+
     // Atualizar status periodicamente
     function updateStatus() {
         fetch('/api/status')
@@ -73,6 +79,7 @@
                 document.getElementById('bot-status').textContent = data.running ? 'Ativo' : 'Inativo';
                 document.getElementById('balance').textContent = `$${data.balance.toFixed(2)}`;
                 document.getElementById('active-positions').textContent = data.positions;
+                document.getElementById('daily-pnl').textContent = `$${data.daily_pnl ? data.daily_pnl.toFixed(2) : '0.00'}`;
                 // Atualizar logs
                 if (data.errors) {
                     const logDiv = document.getElementById('activity-log');

@@ -447,40 +447,28 @@ class BinanceTradingBot:
         for symbol in positions_to_close:
             self._close_position(symbol, "Proteção de capital")
     
-    def _close_position(self, symbol: str, reason: str = "Manual"):
-        """Fecha uma posição"""
+    def _close_position(self, symbol: str, reason: str):
+        """Encerrar uma posição"""
         try:
             position = self.risk_manager.positions.get(symbol)
-            if not position:
-                return
-            
-            logger.info(f"🔴 Fechando posição {symbol}. Motivo: {reason}")
-            
-            if self.config.testnet:
-                # Simular fechamento no testnet
-                realized_pnl = position.unrealized_pnl
-                self.risk_manager.remove_position(symbol, realized_pnl)
-                logger.info(f"🧪 TESTNET: Posição {symbol} fechada. PnL simulado: {realized_pnl:.2f}")
-                return
-            
-            # Vender posição (produção)
-            order = self.client.order_market_sell(
-                symbol=symbol,
-                quantity=position.size
-            )
-            
-            if order['status'] == 'FILLED':
-                # Calcular PnL realizado
-                exit_price = float(order['fills'][0]['price']) if order['fills'] else position.current_price
-                realized_pnl = (exit_price - position.entry_price) * position.size
+            if position:
+                self.logger.info(f"Encerrando posição em {symbol} por {reason}")
+                order = self.exchange.create_market_sell_order(symbol, position.amount)
+                self.logger.info(f"Posição encerrada: {order}")
+                del self.risk_manager.positions[symbol]
                 
-                # Remover posição
-                self.risk_manager.remove_position(symbol, realized_pnl)
-                
-                logger.info(f"✅ Posição {symbol} fechada. Motivo: {reason}. PnL: {realized_pnl:.2f}")
-            
+                # Emitir atualização via WebSocket
+                if hasattr(self, 'app') and hasattr(self.app, 'socketio'):
+                    positions = list(self.risk_manager.positions.values())
+                    daily_pnl = sum(pos.unrealized_pnl for pos in positions)
+                    self.app.socketio.emit('update_positions', {
+                        'positions': [pos.to_dict() for pos in positions],
+                        'active_positions': len(positions),
+                        'daily_pnl': daily_pnl
+                    })
         except Exception as e:
-            logger.error(f"❌ Erro fechando posição {symbol}: {e}")
+            self.logger.error(f"Erro ao encerrar posição: {e}")
+            raise e
     
     def get_status(self) -> Dict[str, Any]:
         """Retorna status do bot"""
