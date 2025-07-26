@@ -407,7 +407,14 @@ class BinanceTradingBot:
                 price=str(take_profit),  # Take Profit
                 stopPrice=str(stop_loss * 1.01),  # Stop Price
                 stopLimitPrice=str(stop_loss),  # Stop Loss
-                stopLimitTimeInForce='GTC'
+                stopLimitTimeInForce='GTC',
+                listClientOrderId=f"tp_sl_{symbol}_{int(time.time())}",  # ID único para a ordem
+                limitClientOrderId=f"tp_{symbol}_{int(time.time())}",    # ID para Take Profit
+                stopClientOrderId=f"sl_{symbol}_{int(time.time())}",     # ID para Stop Loss
+                stopLimitTimeInForce='GTC',
+                stopIcebergQty='0',
+                limitIcebergQty='0',
+                newOrderRespType='FULL'
             )
             
             logger.info(f"✅ Stop Loss e Take Profit configurados para {symbol}")
@@ -453,7 +460,10 @@ class BinanceTradingBot:
             position = self.risk_manager.positions.get(symbol)
             if position:
                 self.logger.info(f"Encerrando posição em {symbol} por {reason}")
-                order = self.exchange.create_market_sell_order(symbol, position.amount)
+                order = self.client.order_market_sell(
+                    symbol=symbol,
+                    quantity=str(position.size)
+                )
                 self.logger.info(f"Posição encerrada: {order}")
                 del self.risk_manager.positions[symbol]
                 

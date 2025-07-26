@@ -1,0 +1,19 @@
+Aqui estão sugestões de configurações para operar com uma 
+carteira de menos de 100 USDT, focando em segurança e 
+controle de risco:
+
+risk_reward_ratio: 1.5 a 2.0 (busque trades com potencial de lucro 
+                   maior que o risco)
+stop_loss_ratio: 0.01 a 0.03 (1% a 3% do valor da posição)
+capital_protection_threshold: 0.90 (proteja o capital se cair 
+                   abaixo de 90 USDT)
+max_daily_loss: 0.03 a 0.05 (limite de perda diária entre 3% e 5% 
+                   do saldo)
+timeframes: ['5m', '15m', '1h'] (operações curtas para evitar 
+                   exposição prolongada)
+min_volume_usdt: 500000 (opere apenas pares com alto volume para 
+                   evitar slippage)
+max_positions: 1 ou 2 (evite abrir várias posições ao mesmo tempo)
+Essas configurações ajudam a proteger seu capital e evitar grandes 
+perdas. Se quiser recomendações mais conservadoras ou agressivas, 
+posso ajustar!
