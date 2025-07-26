@@ -6,7 +6,7 @@ services:
     container_name: binance_trading_bot
     restart: unless-stopped
     ports:
-      - "8000:8000"
+      - "5000:5000"
     volumes:
       - ./logs:/app/logs
     environment:

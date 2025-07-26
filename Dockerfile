@@ -21,7 +21,7 @@ RUN pip install --no-cache-dir pipenv && \
 COPY . .
 
 # Expor porta
-EXPOSE 8000
+EXPOSE 5000
 
 # Comando para iniciar a aplicação
 CMD ["gunicorn", "--worker-class", "eventlet", "-w", "1", "--bind", "0.0.0.0:8000", "wsgi:app"]
