@@ -31,6 +31,13 @@ class RiskManager:
         self.max_positions = getattr(config, 'max_positions', 3)
         self.max_risk_per_trade = getattr(config, 'max_risk_per_trade', 0.02)
         self.capital_protection_threshold = getattr(config, 'capital_protection_threshold', 0.85)
+        
+        # Inicializar sistema de persistência
+        from ..utils.persistence import DataPersistence
+        self.persistence = DataPersistence()
+        
+        # Carregar posições salvas
+        self._load_saved_positions()
 
     def add_position(self, symbol: str, side: str, size: float, entry_price: float, 
                      stop_loss: float, take_profit: float, risk_amount: float) -> bool:
@@ -51,6 +58,9 @@ class RiskManager:
             
             self.positions[symbol] = position
             self.daily_trades += 1
+            
+            # Persistir mudanças
+            self._save_positions()
             
             logger.info(f"✅ Posição adicionada: {symbol}")
             logger.info(f"   Tamanho: {size}")
@@ -199,6 +209,10 @@ class RiskManager:
             self.daily_pnl += realized_pnl
             
             del self.positions[symbol]
+            
+            # Persistir mudanças
+            self._save_positions()
+            
             logger.info(f"Posição {symbol} removida. PnL realizado: {realized_pnl:.2f}")
 
     def update_position_pnl(self, symbol: str, current_price: float):
@@ -253,3 +267,34 @@ class RiskManager:
         self.daily_pnl = 0
         self.daily_start_capital = self.total_capital
         logger.info("Estatísticas diárias resetadas")
+    
+    def _load_saved_positions(self):
+        """Carrega posições salvas do arquivo de persistência"""
+        try:
+            saved_positions = self.persistence.load_positions()
+            if saved_positions:
+                logger.info(f"Carregando {len(saved_positions)} posições salvas...")
+                self.positions = saved_positions
+                # Atualizar preços das posições carregadas
+                if self.bot_instance and hasattr(self.bot_instance, 'client'):
+                    for symbol in self.positions:
+                        try:
+                            ticker = self.bot_instance.client.get_symbol_ticker(symbol=symbol)
+                            current_price = float(ticker['price'])
+                            self.update_position_pnl(symbol, current_price)
+                        except Exception as e:
+                            logger.error(f"Erro atualizando preço para {symbol}: {e}")
+                
+        except Exception as e:
+            logger.error(f"Erro carregando posições salvas: {e}")
+    
+    def _save_positions(self):
+        """Salva posições atuais no arquivo de persistência"""
+        try:
+            success = self.persistence.save_positions(self.positions)
+            if success:
+                logger.info(f"Posições salvas com sucesso: {len(self.positions)} posições")
+            else:
+                logger.warning("Falha ao salvar posições")
+        except Exception as e:
+            logger.error(f"Erro salvando posições: {e}")

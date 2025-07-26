@@ -141,6 +141,11 @@ class BinanceTradingBot:
     def stop(self):
         """Para o bot de trading"""
         logger.info("🛑 Parando Bot de Trading...")
+        
+        # Salvar estado das posições antes de parar
+        if hasattr(self, 'risk_manager'):
+            self.risk_manager._save_positions()
+        
         self.is_running = False
         self.stop_event.set()
         logger.info("✅ Bot parado")

@@ -80,3 +80,32 @@ class Position:
     
     def __str__(self) -> str:
         return f"Position({self.symbol}, {self.side}, {self.size}, PnL: {self.unrealized_pnl:.2f})"
+    
+    @classmethod
+    def from_dict(cls, data: dict) -> 'Position':
+        """Cria uma instância de Position a partir de um dicionário"""
+        # Converter timestamp de string para datetime
+        if data.get('timestamp'):
+            timestamp = datetime.fromisoformat(data['timestamp'])
+        else:
+            timestamp = None
+            
+        # Criar instância
+        position = cls(
+            symbol=data['symbol'],
+            side=data['side'],
+            size=data['size'],
+            entry_price=data['entry_price'],
+            current_price=data['current_price'],
+            unrealized_pnl=data['unrealized_pnl'],
+            stop_loss=data.get('stop_loss'),
+            take_profit=data.get('take_profit'),
+            risk_amount=data.get('risk_amount', 0.0),
+            timestamp=timestamp
+        )
+        
+        # Atualizar campos adicionais
+        position.realized_pnl = data.get('realized_pnl', 0.0)
+        position.status = PositionStatus(data.get('status', PositionStatus.OPEN.value))
+        
+        return position
