@@ -12,24 +12,109 @@
                 <th>Preço Atual</th>
                 <th>Lucro/Prejuízo</th>
                 <th>Status</th>
+                <th>Ações</th>
             </tr>
         </thead>
         <tbody>
             {% for pos in positions %}
-            <tr>
+            <tr data-symbol="{{ pos.symbol }}">
                 <td>{{ pos.symbol }}</td>
                 <td>{{ pos.size }}</td>
                 <td>{{ pos.entry_price }}</td>
-                <td>{{ pos.current_price }}</td>
-                <td>{{ pos.unrealized_pnl }}</td>
+                <td class="current-price">{{ pos.current_price }}</td>
+                <td class="pnl {{ 'text-success' if pos.unrealized_pnl > 0 else 'text-danger' }}">
+                    {{ pos.unrealized_pnl }}%
+                </td>
                 <td>{{ pos.status }}</td>
+                <td>
+                    <button class="btn btn-danger btn-sm close-position" 
+                            data-symbol="{{ pos.symbol }}"
+                            onclick="closePosition('{{ pos.symbol }}')">
+                        Encerrar
+                    </button>
+                </td>
             </tr>
             {% else %}
             <tr>
-                <td colspan="6">Nenhuma posição aberta.</td>
+                <td colspan="7">Nenhuma posição aberta.</td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
 </div>
+
+<div class="modal fade" id="confirmModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirmar Encerramento</h5>
+                <button type="button" class="close" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                Tem certeza que deseja encerrar esta posição?
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-danger" id="confirmClose">Encerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let symbolToClose = null;
+
+    function closePosition(symbol) {
+        symbolToClose = symbol;
+        $('#confirmModal').modal('show');
+    }
+
+    document.getElementById('confirmClose').addEventListener('click', function() {
+        if (!symbolToClose) return;
+
+        fetch('/api/close-position', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                symbol: symbolToClose
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                alert('Erro: ' + data.error);
+            } else {
+                location.reload(); // Recarregar para atualizar a lista
+            }
+        })
+        .catch(error => {
+            alert('Erro ao encerrar posição: ' + error);
+        })
+        .finally(() => {
+            $('#confirmModal').modal('hide');
+            symbolToClose = null;
+        });
+    });
+
+    // Atualizar preços a cada 10 segundos
+    setInterval(function() {
+        fetch('/api/positions')
+            .then(response => response.json())
+            .then(data => {
+                data.forEach(position => {
+                    const row = document.querySelector(`tr[data-symbol="${position.symbol}"]`);
+                    if (row) {
+                        row.querySelector('.current-price').textContent = position.current_price;
+                        row.querySelector('.pnl').textContent = position.unrealized_pnl + '%';
+                    }
+                });
+            });
+    }, 10000);
+</script>
 {% endblock %}

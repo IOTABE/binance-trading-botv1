@@ -101,6 +101,25 @@ def create_app():
                 'last_update': datetime.now().isoformat()
             })
     
+    @app.route('/api/close-position', methods=['POST'])
+    def close_position():
+        """Encerrar uma posição manualmente"""
+        try:
+            data = request.get_json()
+            symbol = data.get('symbol')
+            
+            if not symbol:
+                return jsonify({'error': 'Símbolo não informado'}), 400
+                
+            if not app.trading_bot:
+                return jsonify({'error': 'Bot não está ativo'}), 400
+            
+            app.trading_bot._close_position(symbol, "Encerramento manual")
+            return jsonify({'message': f'Posição {symbol} encerrada com sucesso'})
+            
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+    
     @app.route('/api/settings', methods=['GET', 'POST'])
     def settings_api():
         """Gerenciar configurações"""
