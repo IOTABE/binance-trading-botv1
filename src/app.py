@@ -3,7 +3,7 @@ from flask_socketio import SocketIO, emit
 import json
 import threading
 from datetime import datetime
-from config.settings import Settings
+from src.config.settings import Settings
 from src.bot.trading_bot import TradingBot
 import os
 from dotenv import load_dotenv
@@ -22,13 +22,16 @@ def create_app():
         cors_allowed_origins="*",
         ping_timeout=60,
         ping_interval=25,
-        async_mode='threading',
+        async_mode='eventlet',
+        message_queue=None,  # Use None para modo standalone
         logger=True,
         engineio_logger=True,
         reconnection=True,
         reconnection_attempts=5,
         reconnection_delay=1000,
-        reconnection_delay_max=5000
+        reconnection_delay_max=5000,
+        max_http_buffer_size=1e8,
+        manage_session=False
     )
     
     # Instância global do bot
@@ -166,7 +169,8 @@ def create_app():
     
     # SocketIO Events
     @socketio.on('connect')
-    def handle_connect():
+    def handle_connect(auth=None):
+        """Handler para conexão de cliente"""
         sid = request.sid
         app.connected_clients.add(sid)
         print(f'Cliente conectado (sid: {sid})')
@@ -176,25 +180,46 @@ def create_app():
                 'sid': sid,
                 'clientCount': len(app.connected_clients)
             })
+            
+            # Enviar estado atual se o bot estiver rodando
+            if app.trading_bot and hasattr(app.trading_bot, 'risk_manager'):
+                positions = list(app.trading_bot.risk_manager.positions.values())
+                daily_pnl = sum(pos.unrealized_pnl for pos in positions)
+                emit('update_positions', {
+                    'positions': [pos.to_dict() for pos in positions],
+                    'active_positions': len(positions),
+                    'daily_pnl': daily_pnl,
+                    'timestamp': datetime.now().isoformat()
+                })
+                
         except Exception as e:
             print(f'Erro ao enviar status inicial: {e}')
     
     @socketio.on('disconnect')
-    def handle_disconnect():
-        sid = request.sid
+    def handle_disconnect(sid=None):
+        """Handler para desconexão de cliente"""
+        if sid is None:
+            sid = request.sid
         if sid in app.connected_clients:
             app.connected_clients.remove(sid)
-        print(f'Cliente desconectado (sid: {sid})')
+            print(f'Cliente desconectado (sid: {sid})')
     
     @socketio.on_error()
     def error_handler(e):
+        """Handler global para erros do Socket.IO"""
         print(f'Erro no Socket.IO: {e}')
-        if request and hasattr(request, 'sid'):
-            emit('error', {'message': 'Erro na conexão. Tentando reconectar...'}, room=request.sid)
+        if hasattr(request, 'sid'):
+            emit('error', {
+                'message': 'Erro na conexão. Tentando reconectar...',
+                'error': str(e)
+            }, room=request.sid)
     
     @socketio.on('error')
     def handle_error(error):
+        """Handler para erros reportados pelo cliente"""
         print(f'Erro reportado pelo cliente: {error}')
+        if hasattr(request, 'sid'):
+            print(f'Client SID: {request.sid}')
     
     def emit_to_all_clients(event, data):
         """Emite evento para todos os clientes conectados com tratamento de erro"""

@@ -9,18 +9,13 @@ from threading import Thread, Event
 from binance.client import Client
 from binance.exceptions import BinanceAPIException, BinanceOrderException
 
-# Adicionar o diretório pai ao path para imports
-current_dir = os.path.dirname(os.path.abspath(__file__))
-parent_dir = os.path.dirname(current_dir)
-sys.path.insert(0, parent_dir)
-
 # Imports dos módulos locais
-from models.signal import MarketSignal
-from models.position import Position
-from models.enums import SignalStrength
-from analysis.technical_analyzer import TechnicalAnalyzer
-from risk.risk_manager import RiskManager
-from data.market_data import MarketDataProvider
+from src.models.signal import MarketSignal
+from src.models.position import Position
+from src.models.enums import SignalStrength
+from src.analysis.technical_analyzer import TechnicalAnalyzer
+from src.risk.risk_manager import RiskManager
+from src.data.market_data import MarketDataProvider
 
 logger = logging.getLogger(__name__)
 
@@ -57,17 +52,17 @@ class BinanceTradingBot:
         self.is_running = False
         self.stop_event = Event()
         
-        # Componentes principais
-        self.technical_analyzer = TechnicalAnalyzer(config)
-        self.risk_manager = RiskManager(config, self)
-        self.market_data = None
-        
         # Estado do bot
         self.symbols_to_analyze = []
         self.last_analysis_time = {}
         self.execution_errors = []
+        self.market_data = None
         
-        # Inicializar cliente Binance
+        # Inicializar componentes
+        self.technical_analyzer = TechnicalAnalyzer(config)
+        self.risk_manager = RiskManager(config, self)
+        
+        # Inicializar cliente Binance por último
         self._initialize_client()
         
     def _initialize_client(self):
@@ -406,20 +401,28 @@ class BinanceTradingBot:
                 return
             
             # Stop Loss Order (apenas em produção)
+            # Primeiro verificar se o preço atual está entre o SL e TP
+            ticker = self.client.get_symbol_ticker(symbol=symbol)
+            current_price = float(ticker['price'])
+            
             self.client.order_oco_sell(
                 symbol=symbol,
                 quantity=position.size,
-                price=str(take_profit),  # Take Profit
+                price=str(take_profit),  # Take Profit Limit Price
                 stopPrice=str(stop_loss * 1.01),  # Stop Price
-                stopLimitPrice=str(stop_loss),  # Stop Loss
+                stopLimitPrice=str(stop_loss),  # Stop Limit Price
                 stopLimitTimeInForce='GTC',
                 listClientOrderId=f"tp_sl_{symbol}_{int(time.time())}",  # ID único para a ordem
                 limitClientOrderId=f"tp_{symbol}_{int(time.time())}",    # ID para Take Profit
                 stopClientOrderId=f"sl_{symbol}_{int(time.time())}",     # ID para Stop Loss
-                stopLimitTimeInForce='GTC',
                 stopIcebergQty='0',
                 limitIcebergQty='0',
-                newOrderRespType='FULL'
+                newOrderRespType='FULL',
+                stopType='STOP_LOSS_LIMIT',  # Tipo de stop
+                stopRobot=False,  # Não parar o bot no trigger
+                closePosition=True,  # Fechar a posição quando atingir
+                aboveType="HIGHER",  # Take Profit acima do preço atual
+                belowType="LOWER",   # Stop Loss abaixo do preço atual
             )
             
             logger.info(f"✅ Stop Loss e Take Profit configurados para {symbol}")
@@ -436,18 +439,33 @@ class BinanceTradingBot:
         
         for symbol in list(self.risk_manager.positions.keys()):
             try:
-                # Obter preço atual
-                ticker = self.client.get_symbol_ticker(symbol=symbol)
-                current_price = float(ticker['price'])
+                # Verificar se o símbolo ainda existe
+                symbol_info = self.client.get_symbol_info(symbol)
+                if symbol_info is None:
+                    logger.warning(f"Símbolo {symbol} não mais disponível, fechando posição")
+                    self._close_position(symbol, "Símbolo indisponível")
+                    continue
                 
-                # Atualizar PnL
-                self.risk_manager.update_position_pnl(symbol, current_price)
-                
-                # Verificar se deve fechar
-                should_close, reason = self.risk_manager.should_close_position(symbol)
-                
-                if should_close:
-                    self._close_position(symbol, reason)
+                try:
+                    # Obter preço atual
+                    ticker = self.client.get_symbol_ticker(symbol=symbol)
+                    current_price = float(ticker['price'])
+                    
+                    # Atualizar PnL
+                    self.risk_manager.update_position_pnl(symbol, current_price)
+                    
+                    # Verificar se deve fechar
+                    should_close, reason = self.risk_manager.should_close_position(symbol)
+                    
+                    if should_close:
+                        self._close_position(symbol, reason)
+                    
+                except BinanceAPIException as e:
+                    if e.code == -1121:  # Invalid symbol
+                        logger.error(f"Símbolo {symbol} inválido, removendo posição")
+                        del self.risk_manager.positions[symbol]
+                    else:
+                        logger.error(f"❌ Erro da API Binance para {symbol}: {e}")
                 
             except Exception as e:
                 logger.error(f"❌ Erro monitorando posição {symbol}: {e}")

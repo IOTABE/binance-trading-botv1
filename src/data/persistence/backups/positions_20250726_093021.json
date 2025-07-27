@@ -1,0 +1,33 @@
+{
+    "timestamp": "2025-07-26T09:28:37.001214",
+    "positions": {
+        "TRUMPUSDT": {
+            "symbol": "TRUMPUSDT",
+            "side": "BUY",
+            "size": 0.232,
+            "entry_price": 10.12,
+            "current_price": 10.11,
+            "unrealized_pnl": -0.0023199999999999506,
+            "realized_pnl": 0.0,
+            "stop_loss": 9.8164,
+            "take_profit": 10.524799999999999,
+            "risk_amount": 0.1012,
+            "status": "OPEN",
+            "timestamp": "2025-07-26T09:24:39.283833"
+        },
+        "PEPEUSDT": {
+            "symbol": "PEPEUSDT",
+            "side": "BUY",
+            "size": 149158.0,
+            "entry_price": 1.258e-05,
+            "current_price": 1.258e-05,
+            "unrealized_pnl": 0,
+            "realized_pnl": 0.0,
+            "stop_loss": 1.22026e-05,
+            "take_profit": 1.30832e-05,
+            "risk_amount": 1.258e-07,
+            "status": "OPEN",
+            "timestamp": "2025-07-26T09:28:37.000761"
+        }
+    }
+}

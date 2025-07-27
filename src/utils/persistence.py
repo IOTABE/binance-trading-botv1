@@ -2,7 +2,7 @@ import json
 import os
 from datetime import datetime
 from typing import Dict, Any
-from ..models.position import Position
+from src.models.position import Position
 
 class DataPersistence:
     def __init__(self, data_dir: str = None):

@@ -33,7 +33,7 @@ class RiskManager:
         self.capital_protection_threshold = getattr(config, 'capital_protection_threshold', 0.85)
         
         # Inicializar sistema de persistência
-        from ..utils.persistence import DataPersistence
+        from src.utils.persistence import DataPersistence
         self.persistence = DataPersistence()
         
         # Carregar posições salvas
@@ -274,16 +274,73 @@ class RiskManager:
             saved_positions = self.persistence.load_positions()
             if saved_positions:
                 logger.info(f"Carregando {len(saved_positions)} posições salvas...")
-                self.positions = saved_positions
+                
+                # Verificar se temos acesso à API da Binance
+                if not hasattr(self, 'binance_client'):
+                    try:
+                        from binance.client import Client
+                        if hasattr(self.config, 'api_key') and hasattr(self.config, 'api_secret'):
+                            self.binance_client = Client(
+                                api_key=self.config.api_key,
+                                api_secret=self.config.api_secret,
+                                testnet=getattr(self.config, 'testnet', True)
+                            )
+                    except Exception as e:
+                        logger.error(f"Erro inicializando cliente Binance no RiskManager: {e}")
+                
                 # Atualizar preços das posições carregadas
-                if self.bot_instance and hasattr(self.bot_instance, 'client'):
-                    for symbol in self.positions:
-                        try:
-                            ticker = self.bot_instance.client.get_symbol_ticker(symbol=symbol)
-                            current_price = float(ticker['price'])
-                            self.update_position_pnl(symbol, current_price)
-                        except Exception as e:
-                            logger.error(f"Erro atualizando preço para {symbol}: {e}")
+                for symbol in saved_positions:
+                    try:
+                        current_price = None
+                        # Tentar obter preço do bot_instance primeiro
+                        if self.bot_instance and hasattr(self.bot_instance, 'client'):
+                            try:
+                                ticker = self.bot_instance.client.get_symbol_ticker(symbol=symbol)
+                                current_price = float(ticker['price'])
+                            except Exception:
+                                pass
+                        
+                        # Se não conseguiu, tentar com o cliente local
+                        if current_price is None and hasattr(self, 'binance_client'):
+                            try:
+                                ticker = self.binance_client.get_symbol_ticker(symbol=symbol)
+                                current_price = float(ticker['price'])
+                            except Exception:
+                                pass
+                        
+                        # Se conseguiu o preço, atualizar a posição
+                        if current_price is not None:
+                            position = saved_positions[symbol]
+                            
+                            # Verificar se a posição ainda é válida
+                            try:
+                                if self.binance_client:
+                                    symbol_info = self.binance_client.get_symbol_info(symbol)
+                                    if symbol_info is None:
+                                        logger.warning(f"Símbolo {symbol} não encontrado na Binance, removendo posição")
+                                        del saved_positions[symbol]
+                                        continue
+                            except Exception as e:
+                                logger.error(f"Erro verificando símbolo {symbol}: {e}")
+                            
+                            position.current_price = current_price
+                            position.calculate_unrealized_pnl()
+                            logger.info(f"Preço atualizado para {symbol}: {current_price}")
+                        else:
+                            logger.warning(f"Não foi possível obter preço atual para {symbol}, removendo posição")
+                            del saved_positions[symbol]
+                            
+                    except Exception as e:
+                        logger.error(f"Erro processando posição salva {symbol}: {e}")
+                        if symbol in saved_positions:
+                            del saved_positions[symbol]
+                
+                # Atualizar posições apenas se houver alguma válida
+                if saved_positions:
+                    self.positions = saved_positions
+                    logger.info(f"Carregadas {len(self.positions)} posições válidas")
+                else:
+                    logger.warning("Nenhuma posição válida encontrada")
                 
         except Exception as e:
             logger.error(f"Erro carregando posições salvas: {e}")

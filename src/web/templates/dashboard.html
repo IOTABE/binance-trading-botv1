@@ -65,13 +65,24 @@
     // Configurar Socket.IO com reconexão
     const socket = io({
         reconnection: true,
-        reconnectionAttempts: 5,
+        reconnectionAttempts: 10,
         reconnectionDelay: 1000,
         reconnectionDelayMax: 5000,
-        timeout: 20000
+        timeout: 20000,
+        autoConnect: true,
+        forceNew: false,
+        transports: ['websocket', 'polling']
     });
 
+    // Variável para controlar tentativas de reconexão
+    let reconnectAttempts = 0;
+    const maxReconnectAttempts = 10;
+
     // Eventos de conexão
+    socket.io.on("reconnect_attempt", (attempt) => {
+        reconnectAttempts = attempt;
+        addLogMessage(`Tentativa de reconexão ${attempt} de ${maxReconnectAttempts}`);
+    });
     socket.on('connect', () => {
         console.log('Conectado ao servidor');
         addLogMessage('Conexão WebSocket estabelecida');

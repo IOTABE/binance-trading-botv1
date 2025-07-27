@@ -1,0 +1,19 @@
+{
+    "timestamp": "2025-07-26T10:00:56.712907",
+    "positions": {
+        "TRUMPUSDT": {
+            "symbol": "TRUMPUSDT",
+            "side": "BUY",
+            "size": 0.232,
+            "entry_price": 10.12,
+            "current_price": 10.13,
+            "unrealized_pnl": 0.0023200000000003626,
+            "realized_pnl": 0.0,
+            "stop_loss": 9.8067,
+            "take_profit": 10.5144,
+            "risk_amount": 0.1011,
+            "status": "OPEN",
+            "timestamp": "2025-07-26T09:26:01.377846"
+        },
+       
+}

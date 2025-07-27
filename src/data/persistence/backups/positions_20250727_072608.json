@@ -1,0 +1,47 @@
+{
+    "timestamp": "2025-07-27T07:25:51.140038",
+    "positions": {
+        "WIFUSDT": {
+            "symbol": "WIFUSDT",
+            "side": "BUY",
+            "size": 1.45,
+            "entry_price": 1.088,
+            "current_price": 1.088,
+            "unrealized_pnl": 0.0,
+            "realized_pnl": 0.0,
+            "stop_loss": 1.039642857142857,
+            "take_profit": 1.1501428571428571,
+            "risk_amount": 0.015785714285714292,
+            "status": "OPEN",
+            "timestamp": "2025-07-27T07:23:09.929075"
+        },
+        "DOGEUSDT": {
+            "symbol": "DOGEUSDT",
+            "side": "BUY",
+            "size": 6.0,
+            "entry_price": 0.23725,
+            "current_price": 0.23722,
+            "unrealized_pnl": -0.00018000000000001348,
+            "realized_pnl": 0.0,
+            "stop_loss": 0.2296392857142857,
+            "take_profit": 0.2473742857142857,
+            "risk_amount": 0.0025335714285714267,
+            "status": "OPEN",
+            "timestamp": "2025-07-27T07:23:35.571951"
+        },
+        "TRUMPUSDT": {
+            "symbol": "TRUMPUSDT",
+            "side": "BUY",
+            "size": 0.126,
+            "entry_price": 10.12,
+            "current_price": 10.12,
+            "unrealized_pnl": 0,
+            "realized_pnl": 0.0,
+            "stop_loss": 9.8164,
+            "take_profit": 10.524799999999999,
+            "risk_amount": 0.1012,
+            "status": "OPEN",
+            "timestamp": "2025-07-27T07:25:51.139422"
+        }
+    }
+}

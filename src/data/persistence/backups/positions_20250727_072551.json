@@ -1,0 +1,33 @@
+{
+    "timestamp": "2025-07-27T07:24:52.703734",
+    "positions": {
+        "WIFUSDT": {
+            "symbol": "WIFUSDT",
+            "side": "BUY",
+            "size": 1.45,
+            "entry_price": 1.088,
+            "current_price": 1.089,
+            "unrealized_pnl": 0.0014499999999998403,
+            "realized_pnl": 0.0,
+            "stop_loss": 1.039642857142857,
+            "take_profit": 1.1501428571428571,
+            "risk_amount": 0.015785714285714292,
+            "status": "OPEN",
+            "timestamp": "2025-07-27T07:23:09.929075"
+        },
+        "TRUMPUSDT": {
+            "symbol": "TRUMPUSDT",
+            "side": "BUY",
+            "size": 0.126,
+            "entry_price": 10.13,
+            "current_price": 10.13,
+            "unrealized_pnl": 0,
+            "realized_pnl": 0.0,
+            "stop_loss": 9.8261,
+            "take_profit": 10.535200000000001,
+            "risk_amount": 0.10130000000000002,
+            "status": "OPEN",
+            "timestamp": "2025-07-27T07:24:52.703340"
+        }
+    }
+}
