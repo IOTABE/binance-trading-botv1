@@ -14,6 +14,7 @@ COPY Pipfile* ./
 
 # Instalar dependências
 RUN pip install --no-cache-dir pipenv && \
+#   pipenv shell && \
     pipenv install --deploy --system && \
     pip uninstall -y pipenv
 
